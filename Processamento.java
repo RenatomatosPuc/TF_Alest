@@ -1,54 +1,56 @@
 package TF_Alest;
 
-// Passo 3: atende as aeronaves usando pistas limitadas e sem interrupção.
+// Etapa 3: as aeronaves usam a pista. Cada pista atende uma aeronave por vez, sem interrupção.
 public class Processamento {
     private final Classificacao classificacao;
-    private final Configuracao configuracao;
+    private final Configuracao config;
+
+    // Uma pista por posição. null = pista livre.
     private final Atendimento[] pistas;
 
-    public Processamento(Classificacao classificacao, Configuracao configuracao) {
+    public Processamento(Classificacao classificacao, Configuracao config) {
         this.classificacao = classificacao;
-        this.configuracao = configuracao;
-        this.pistas = new Atendimento[configuracao.getQuantidadePistas()];
+        this.config = config;
+        this.pistas = new Atendimento[config.quantidadePistas];
     }
 
-    /** Finaliza operações que já consumiram todo o tempo de pista. */
-    void concluirAtendimentos(int tempo) {
+    // Libera as pistas cujas operações terminaram.
+    public void concluirAtendimentos(int tempo) {
         for (int i = 0; i < pistas.length; i++) {
-            Atendimento atendimento = pistas[i];
-            if (atendimento != null && atendimento.terminou()) {
-                atendimento.getAeronave().concluirProcessamento(tempo);
+            if (pistas[i] != null && pistas[i].terminou()) {
+                pistas[i].getAeronave().concluirProcessamento(tempo);
                 pistas[i] = null;
             }
         }
     }
 
-    // Ocupa cada pista livre com a aeronave de maior prioridade disponível.
-    void iniciarAtendimentos(int tempo) {
+    // Cada pista livre recebe a aeronave de maior prioridade que estiver esperando.
+    public void iniciarAtendimentos(int tempo) {
         for (int i = 0; i < pistas.length; i++) {
             if (pistas[i] == null) {
                 Aeronave aeronave = classificacao.retirarProximaPrioridade();
                 if (aeronave == null) {
-                    return;
+                    return; // ninguém esperando
                 }
                 aeronave.iniciarProcessamento(tempo);
-                pistas[i] = new Atendimento(aeronave, duracaoDaPista(aeronave.getPrioridade()));
+                int duracao = duracaoDaPista(aeronave.getPrioridade());
+                pistas[i] = new Atendimento(aeronave, duracao);
             }
         }
     }
 
-    void avancarUmaRodada() {
-        for (Atendimento atendimento : pistas) {
-            if (atendimento != null) {
-                atendimento.avancarUmaRodada();
+    public void avancarUmaRodada() {
+        for (int i = 0; i < pistas.length; i++) {
+            if (pistas[i] != null) {
+                pistas[i].avancarUmaRodada();
             }
         }
     }
 
     public int getPistasOcupadas() {
         int ocupadas = 0;
-        for (Atendimento atendimento : pistas) {
-            if (atendimento != null) {
+        for (int i = 0; i < pistas.length; i++) {
+            if (pistas[i] != null) {
                 ocupadas++;
             }
         }
@@ -56,15 +58,12 @@ public class Processamento {
     }
 
     private int duracaoDaPista(Prioridade prioridade) {
-        switch (prioridade) {
-            case ALTA:
-                return configuracao.getDuracaoPistaAlta();
-            case MEDIA:
-                return configuracao.getDuracaoPistaMedia();
-            case BAIXA:
-                return configuracao.getDuracaoPistaBaixa();
-            default:
-                throw new IllegalStateException("Prioridade não reconhecida: " + prioridade);
+        if (prioridade == Prioridade.ALTA) {
+            return config.duracaoPistaAlta;
         }
+        if (prioridade == Prioridade.MEDIA) {
+            return config.duracaoPistaMedia;
+        }
+        return config.duracaoPistaBaixa;
     }
 }

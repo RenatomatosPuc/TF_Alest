@@ -2,15 +2,15 @@ package TF_Alest;
 
 import java.util.NoSuchElementException;
 
-// Fila FIFO de aeronaves com nós encadeados.
-
+// Fila (FIFO) de aeronaves feita com lista encadeada.
 public class Fila {
-    private No primeiro;
-    private No ultimo;
+    private Node primeiro;
+    private Node ultimo;
     private int tamanho;
 
+    // Coloca a aeronave no fim da fila.
     public void enfileirar(Aeronave aeronave) {
-        No novo = new No(aeronave);
+        Node novo = new No(aeronave);
         if (estaVazia()) {
             primeiro = novo;
         } else {
@@ -20,11 +20,11 @@ public class Fila {
         tamanho++;
     }
 
+    // Tira e devolve a aeronave do começo da fila.
     public Aeronave desenfileirar() {
         if (estaVazia()) {
             throw new NoSuchElementException("A fila está vazia.");
         }
-
         Aeronave aeronave = primeiro.aeronave;
         primeiro = primeiro.proximo;
         tamanho--;
@@ -42,11 +42,12 @@ public class Fila {
         return tamanho == 0;
     }
 
-    private static class No {
-        private Aeronave aeronave;
-        private No proximo;
+    // Cada nó guarda uma aeronave e aponta para o próximo.
+    private static class Node {
+        Aeronave aeronave;
+        Node proximo;
 
-        private No(Aeronave aeronave) {
+        Node(Aeronave aeronave) {
             this.aeronave = aeronave;
         }
     }

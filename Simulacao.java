@@ -4,36 +4,40 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-// Coordena a geração de chegadas e as três etapas do sistema.
+// Controla a simulação: gera chegadas e faz as três etapas funcionarem rodada a rodada.
 public class Simulacao {
-    private final Configuracao configuracao;
+    private final Configuracao config;
     private final Random aleatorio;
-    private final Entrada entrada;teste porraaaaaaaaaa
+    private final Entrada entrada;
     private final Classificacao classificacao;
     private final Processamento processamento;
     private final List<Aeronave> aeronaves = new ArrayList<>();
     private final List<RegistroRodada> registros = new ArrayList<>();
 
-    public Simulacao(Configuracao configuracao) {
-        this.configuracao = configuracao;
-        this.aleatorio = new Random(configuracao.getSemente());
-        this.entrada = new Entrada(configuracao.getCapacidadeFilaEntrada());
-        this.classificacao = new Classificacao(entrada, configuracao, aleatorio);
-        this.processamento = new Processamento(classificacao, configuracao);
+    public Simulacao(Configuracao config) {
+        this.config = config;
+        this.aleatorio = new Random(config.semente);
+        this.entrada = new Entrada(config.capacidadeFilaEntrada);
+        this.classificacao = new Classificacao(entrada, config, aleatorio);
+        this.processamento = new Processamento(classificacao, config);
     }
 
-    // Executa todas as rodadas e devolve os dados coletados.
     public ResultadoSimulacao executar() {
-        for (int rodada = 1; rodada <= configuracao.getRodadas(); rodada++) {
-            int tempoAtual = rodada - 1;
-            gerarChegada(tempoAtual);
+        for (int rodada = 1; rodada <= config.rodadas; rodada++) {
+            int tempo = rodada - 1;
 
-            classificacao.concluirAtendimentos(tempoAtual);
-            processamento.concluirAtendimentos(tempoAtual);
+            // 1) Pode chegar uma aeronave nova
+            gerarChegada(tempo);
 
-            processamento.iniciarAtendimentos(tempoAtual);
-            classificacao.iniciarAtendimentos(tempoAtual);
+            // 2) Quem terminou a etapa sai dela
+            classificacao.concluirAtendimentos(tempo);
+            processamento.concluirAtendimentos(tempo);
 
+            // 3) Quem estava esperando entra na etapa seguinte
+            processamento.iniciarAtendimentos(tempo);
+            classificacao.iniciarAtendimentos(tempo);
+
+            // 4) Anota como o sistema ficou nesta rodada
             registros.add(new RegistroRodada(
                     rodada,
                     entrada.getTamanhoFila(),
@@ -43,28 +47,25 @@ public class Simulacao {
                     classificacao.getControladoresOcupados(),
                     processamento.getPistasOcupadas()));
 
+            // 5) Passa o tempo
             classificacao.avancarUmaRodada();
             processamento.avancarUmaRodada();
-
         }
 
-        // Fecha as operações que terminaram exatamente no limite da simulação.
-        int tempoFinal = configuracao.getRodadas();
-        classificacao.concluirAtendimentos(tempoFinal);
-        processamento.concluirAtendimentos(tempoFinal);
+        // Fecha o que terminou exatamente no fim da última rodada.
+        classificacao.concluirAtendimentos(config.rodadas);
+        processamento.concluirAtendimentos(config.rodadas);
 
-        return new ResultadoSimulacao(
-                configuracao, entrada.getTotalChegadas(), entrada.getTotalAceitas(),
-                entrada.getTotalRecusadas(), aeronaves, registros);
+        return new ResultadoSimulacao(config, entrada, aeronaves, registros);
     }
 
-    private void gerarChegada(int tempoAtual) {
-        if (aleatorio.nextDouble() < configuracao.getProbabilidadeChegada()) {
+    // Em cada rodada, chega uma aeronave com a probabilidade definida na configuração.
+    private void gerarChegada(int tempo) {
+        if (aleatorio.nextDouble() < config.probabilidadeChegada) {
             String identificacao = String.format("VOO-%03d", aeronaves.size() + 1);
-            Aeronave aeronave = new Aeronave(identificacao, tempoAtual);
+            Aeronave aeronave = new Aeronave(identificacao, tempo);
             aeronaves.add(aeronave);
             entrada.receber(aeronave);
         }
     }
-
 }

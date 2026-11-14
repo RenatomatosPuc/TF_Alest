@@ -1,51 +1,32 @@
 package TF_Alest;
 
-import java.util.ArrayList;
-import java.util.List;
-
-// Passo 1: recebe aeronaves e mantém a fila de entrada limitada.
+// Etapa 1: recebe as aeronaves e mantém a fila de entrada, que tem tamanho máximo.
 public class Entrada {
     private final Fila fila = new Fila();
-    private final List<String> identificacoesRecebidas = new ArrayList<>();
     private final int capacidade;
-    private int totalChegadas;
     private int totalAceitas;
     private int totalRecusadas;
 
     public Entrada(int capacidade) {
-        if (capacidade <= 0) {
-            throw new IllegalArgumentException("A capacidade da fila deve ser positiva.");
-        }
         this.capacidade = capacidade;
     }
 
-    // Registra a chegada e retorna true quando a aeronave entra na fila.
-    public boolean receber(Aeronave aeronave) {
-        if (aeronave.getEstado() != Aeronave.EstadoAeronave.FILA_ENTRADA) {
-            throw new IllegalArgumentException("Apenas aeronaves recém-chegadas podem entrar na fila.");
-        }
-        for (String identificacao : identificacoesRecebidas) {
-            if (identificacao.equals(aeronave.getIdentificacao())) {
-                throw new IllegalArgumentException("Identificação de aeronave duplicada.");
-            }
-        }
-        identificacoesRecebidas.add(aeronave.getIdentificacao());
-        totalChegadas++;
+    // Se a fila estiver cheia, a aeronave é recusada. Senão, entra na fila.
+    public void receber(Aeronave aeronave) {
         if (fila.tamanho() >= capacidade) {
             aeronave.recusar();
             totalRecusadas++;
-            return false;
+        } else {
+            fila.enfileirar(aeronave);
+            totalAceitas++;
         }
-        fila.enfileirar(aeronave);
-        totalAceitas++;
-        return true;
     }
 
-    Aeronave retirarProxima() {
+    public Aeronave retirarProxima() {
         return fila.desenfileirar();
     }
 
-    boolean estaVazia() {
+    public boolean estaVazia() {
         return fila.estaVazia();
     }
 
@@ -53,12 +34,8 @@ public class Entrada {
         return fila.tamanho();
     }
 
-    public int getCapacidade() {
-        return capacidade;
-    }
-
     public int getTotalChegadas() {
-        return totalChegadas;
+        return totalAceitas + totalRecusadas;
     }
 
     public int getTotalAceitas() {

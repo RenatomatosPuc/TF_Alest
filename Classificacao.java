@@ -2,30 +2,31 @@ package TF_Alest;
 
 import java.util.Random;
 
-// Segunda etapa: analisa aeronaves e as encaminha às filas de prioridade.
+// Etapa 2: os controladores analisam cada aeronave, sorteiam a prioridade
+// e colocam a aeronave na fila da prioridade correspondente.
 public class Classificacao {
     private final Entrada entrada;
-    private final Configuracao configuracao;
+    private final Configuracao config;
     private final Random aleatorio;
     private final Fila filaAlta = new Fila();
     private final Fila filaMedia = new Fila();
     private final Fila filaBaixa = new Fila();
+
+    // Um controlador por posição. null = controlador livre.
     private final Atendimento[] controladores;
 
-    public Classificacao(Entrada entrada, Configuracao configuracao, Random aleatorio) {
+    public Classificacao(Entrada entrada, Configuracao config, Random aleatorio) {
         this.entrada = entrada;
-        this.configuracao = configuracao;
+        this.config = config;
         this.aleatorio = aleatorio;
-        this.controladores = new Atendimento[configuracao.getQuantidadeControladores()];
+        this.controladores = new Atendimento[config.quantidadeControladores];
     }
 
-    // Finaliza classificações que consumiram sua duração e coloca os aviões na
-    // fila.
-    void concluirAtendimentos(int tempo) {
+    // Quem terminou de analisar recebe uma prioridade, vai para a fila e libera o controlador.
+    public void concluirAtendimentos(int tempo) {
         for (int i = 0; i < controladores.length; i++) {
-            Atendimento atendimento = controladores[i];
-            if (atendimento != null && atendimento.terminou()) {
-                Aeronave aeronave = atendimento.getAeronave();
+            if (controladores[i] != null && controladores[i].terminou()) {
+                Aeronave aeronave = controladores[i].getAeronave();
                 Prioridade prioridade = sortearPrioridade();
                 aeronave.concluirClassificacao(tempo, prioridade);
                 filaDaPrioridade(prioridade).enfileirar(aeronave);
@@ -34,27 +35,28 @@ public class Classificacao {
         }
     }
 
-    // Ocupa controladores livres com as próximas aeronaves da fila de entrada.
-    void iniciarAtendimentos(int tempo) {
-        for (int i = 0; i < controladores.length && !entrada.estaVazia(); i++) {
-            if (controladores[i] == null) {
+    // Controladores livres pegam a próxima aeronave da fila de entrada.
+    public void iniciarAtendimentos(int tempo) {
+        for (int i = 0; i < controladores.length; i++) {
+            if (controladores[i] == null && !entrada.estaVazia()) {
                 Aeronave aeronave = entrada.retirarProxima();
                 aeronave.iniciarClassificacao(tempo);
-                controladores[i] = new Atendimento(
-                        aeronave, configuracao.getDuracaoClassificacao());
+                controladores[i] = new Atendimento(aeronave, config.duracaoClassificacao);
             }
         }
     }
 
-    void avancarUmaRodada() {
-        for (Atendimento atendimento : controladores) {
-            if (atendimento != null) {
-                atendimento.avancarUmaRodada();
+    public void avancarUmaRodada() {
+        for (int i = 0; i < controladores.length; i++) {
+            if (controladores[i] != null) {
+                controladores[i].avancarUmaRodada();
             }
         }
     }
 
-    Aeronave retirarProximaPrioridade() {
+    // Devolve a próxima aeronave a ser atendida na pista: primeiro as de prioridade ALTA,
+    // depois MEDIA, depois BAIXA. Retorna null se as três filas estiverem vazias.
+    public Aeronave retirarProximaPrioridade() {
         if (!filaAlta.estaVazia()) {
             return filaAlta.desenfileirar();
         }
@@ -73,18 +75,20 @@ public class Classificacao {
 
     public int getControladoresOcupados() {
         int ocupados = 0;
-        for (Atendimento atendimento : controladores) {
-            if (atendimento != null) {
+        for (int i = 0; i < controladores.length; i++) {
+            if (controladores[i] != null) {
                 ocupados++;
             }
         }
         return ocupados;
     }
 
+    // Sorteia um número entre 0 e 1 e vê em qual faixa ele cai.
+    // Ex.: 0.05 / 0.20 / 0.75 -> [0, 0.05) ALTA, [0.05, 0.25) MEDIA, resto BAIXA.
     private Prioridade sortearPrioridade() {
         double sorteio = aleatorio.nextDouble();
-        double limiteAlta = configuracao.getProbabilidadePrioridadeAlta();
-        double limiteMedia = limiteAlta + configuracao.getProbabilidadePrioridadeMedia();
+        double limiteAlta = config.probabilidadePrioridadeAlta;
+        double limiteMedia = limiteAlta + config.probabilidadePrioridadeMedia;
         if (sorteio < limiteAlta) {
             return Prioridade.ALTA;
         }
@@ -95,15 +99,12 @@ public class Classificacao {
     }
 
     private Fila filaDaPrioridade(Prioridade prioridade) {
-        switch (prioridade) {
-            case ALTA:
-                return filaAlta;
-            case MEDIA:
-                return filaMedia;
-            case BAIXA:
-                return filaBaixa;
-            default:
-                throw new IllegalArgumentException("Prioridade não reconhecida: " + prioridade);
+        if (prioridade == Prioridade.ALTA) {
+            return filaAlta;
         }
+        if (prioridade == Prioridade.MEDIA) {
+            return filaMedia;
+        }
+        return filaBaixa;
     }
 }

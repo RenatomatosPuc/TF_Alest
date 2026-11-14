@@ -1,92 +1,45 @@
 package TF_Alest;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.io.PrintWriter;
 import java.util.List;
 
-// Guarda os dados da simulação, mostra o resumo e grava os CSVs.
+// Guarda o que aconteceu na simulação, mostra o resumo na tela e grava os arquivos CSV.
 public class ResultadoSimulacao {
-    private final Configuracao configuracao;
-    private final int totalChegadas;
-    private final int totalAceitas;
-    private final int totalRecusadas;
+    private final Configuracao config;
+    private final Entrada entrada;
     private final List<Aeronave> aeronaves;
     private final List<RegistroRodada> registros;
 
-    ResultadoSimulacao(Configuracao configuracao, int totalChegadas, int totalAceitas,
-            int totalRecusadas, List<Aeronave> aeronaves, List<RegistroRodada> registros) {
-        this.configuracao = configuracao;
-        this.totalChegadas = totalChegadas;
-        this.totalAceitas = totalAceitas;
-        this.totalRecusadas = totalRecusadas;
+    public ResultadoSimulacao(Configuracao config, Entrada entrada,
+            List<Aeronave> aeronaves, List<RegistroRodada> registros) {
+        this.config = config;
+        this.entrada = entrada;
         this.aeronaves = aeronaves;
         this.registros = registros;
     }
 
-    public List<Aeronave> getAeronaves() {
-        return aeronaves;
-    }
-
-    public List<RegistroRodada> getRegistros() {
-        return registros;
-    }
-
-    public int getTotalChegadas() {
-        return totalChegadas;
-    }
-
-    public int getTotalAceitas() {
-        return totalAceitas;
-    }
-
-    public int getTotalRecusadas() {
-        return totalRecusadas;
-    }
-
-    public int getTotalConcluidas() {
-        int total = 0;
-        for (Aeronave aeronave : aeronaves) {
-            if (aeronave.getEstado() == Aeronave.EstadoAeronave.CONCLUIDA) {
-                total++;
-            }
-        }
-        return total;
-    }
-
-    public int getTotalPendentes() {
-        int total = 0;
-        for (Aeronave aeronave : aeronaves) {
-            Aeronave.EstadoAeronave estado = aeronave.getEstado();
-            if (estado != Aeronave.EstadoAeronave.CONCLUIDA
-                    && estado != Aeronave.EstadoAeronave.RECUSADA) {
-                total++;
-            }
-        }
-        return total;
-    }
+    // ---------- Resumo na tela ----------
 
     public void imprimirResumo() {
-        System.out.println("Semente: " + configuracao.getSemente());
-        System.out.println("Chegadas: " + totalChegadas);
-        System.out.println("Aceitas: " + totalAceitas);
-        System.out.println("Recusadas/desviadas: " + totalRecusadas);
-        System.out.println("Operações concluídas: " + getTotalConcluidas());
-        System.out.println("Aeronaves ainda no sistema: " + getTotalPendentes());
+        System.out.println("Semente: " + config.semente);
+        System.out.println("Chegadas: " + entrada.getTotalChegadas());
+        System.out.println("Aceitas: " + entrada.getTotalAceitas());
+        System.out.println("Recusadas/desviadas: " + entrada.getTotalRecusadas());
+        System.out.println("Operações concluídas: " + contarConcluidas());
+        System.out.println("Aeronaves ainda no sistema: " + contarPendentes());
         System.out.printf("Ocupação média dos controladores: %.2f%%%n", ocupacaoControladores());
         System.out.printf("Ocupação média das pistas: %.2f%%%n", ocupacaoPistas());
-        System.out.println("Métricas por prioridade (voos concluídos):");
-        for (Prioridade prioridade : Prioridade.values()) {
-            imprimirResumoPrioridade(prioridade);
-        }
-        imprimirPendentes();
-    }
 
-    public void salvarCsv(Path diretorio) throws IOException {
-        Files.createDirectories(diretorio);
-        Files.writeString(diretorio.resolve("rodadas.csv"), csvRodadas(), StandardCharsets.UTF_8);
-        Files.writeString(diretorio.resolve("aeronaves.csv"), csvAeronaves(), StandardCharsets.UTF_8);
+        System.out.println("Métricas por prioridade (voos concluídos):");
+        Prioridade[] todas = Prioridade.values();
+        for (int i = 0; i < todas.length; i++) {
+            imprimirResumoPrioridade(todas[i]);
+        }
+
+        imprimirPendentes();
     }
 
     private void imprimirResumoPrioridade(Prioridade prioridade) {
@@ -98,12 +51,13 @@ public class ResultadoSimulacao {
         for (Aeronave aeronave : aeronaves) {
             if (aeronave.getEstado() == Aeronave.EstadoAeronave.CONCLUIDA
                     && aeronave.getPrioridade() == prioridade) {
+                int espera = aeronave.getTempoEsperaTotal();
                 quantidade++;
-                somaEspera += aeronave.getTempoEsperaTotal();
-                if (aeronave.getTempoEsperaTotal() > esperaMaxima) {
-                    esperaMaxima = aeronave.getTempoEsperaTotal();
-                }
+                somaEspera += espera;
                 somaTempoNoSistema += aeronave.getTempoNoSistema();
+                if (espera > esperaMaxima) {
+                    esperaMaxima = espera;
+                }
             }
         }
 
@@ -111,93 +65,124 @@ public class ResultadoSimulacao {
             System.out.println("  " + prioridade + ": nenhum voo concluído");
         } else {
             double esperaMedia = (double) somaEspera / quantidade;
-            double tempoMedioNoSistema = (double) somaTempoNoSistema / quantidade;
+            double tempoMedio = (double) somaTempoNoSistema / quantidade;
             System.out.printf("  %s: %d voos, espera média %.2f rodadas, espera máxima %d, "
                     + "tempo médio no sistema %.2f rodadas%n",
-                    prioridade, quantidade, esperaMedia, esperaMaxima, tempoMedioNoSistema);
+                    prioridade, quantidade, esperaMedia, esperaMaxima, tempoMedio);
         }
     }
 
     private void imprimirPendentes() {
-        if (getTotalPendentes() == 0) {
+        if (contarPendentes() == 0) {
             return;
         }
-
         System.out.println("Pendências ao fim da simulação:");
         for (Aeronave aeronave : aeronaves) {
-            Aeronave.EstadoAeronave estado = aeronave.getEstado();
-            if (estado != Aeronave.EstadoAeronave.CONCLUIDA
-                    && estado != Aeronave.EstadoAeronave.RECUSADA) {
+            if (estaPendente(aeronave)) {
                 String prioridade = "sem classificação";
                 if (aeronave.getPrioridade() != null) {
                     prioridade = aeronave.getPrioridade().toString();
                 }
-                System.out.println("  " + aeronave.getIdentificacao() + " - " + estado + " - " + prioridade);
+                System.out.println("  " + aeronave.getIdentificacao() + " - "
+                        + aeronave.getEstado() + " - " + prioridade);
             }
         }
     }
 
+    // ---------- Contagens e médias ----------
+
+    // Pendente = ainda está no sistema (nem concluiu, nem foi recusada).
+    private boolean estaPendente(Aeronave aeronave) {
+        return aeronave.getEstado() != Aeronave.EstadoAeronave.CONCLUIDA
+                && aeronave.getEstado() != Aeronave.EstadoAeronave.RECUSADA;
+    }
+
+    private int contarConcluidas() {
+        int total = 0;
+        for (Aeronave aeronave : aeronaves) {
+            if (aeronave.getEstado() == Aeronave.EstadoAeronave.CONCLUIDA) {
+                total++;
+            }
+        }
+        return total;
+    }
+
+    private int contarPendentes() {
+        int total = 0;
+        for (Aeronave aeronave : aeronaves) {
+            if (estaPendente(aeronave)) {
+                total++;
+            }
+        }
+        return total;
+    }
+
+    // Ocupação = (soma dos ocupados em todas as rodadas) / (total possível) * 100
     private double ocupacaoControladores() {
-        int ocupados = 0;
+        int soma = 0;
         for (RegistroRodada registro : registros) {
-            ocupados += registro.getControladoresOcupados();
+            soma += registro.controladoresOcupados;
         }
-        int total = configuracao.getQuantidadeControladores() * registros.size();
-        if (total == 0) {
-            return 0.0;
-        }
-        return 100.0 * ocupados / total;
+        int totalPossivel = config.quantidadeControladores * registros.size();
+        return 100.0 * soma / totalPossivel;
     }
 
     private double ocupacaoPistas() {
-        int ocupadas = 0;
+        int soma = 0;
         for (RegistroRodada registro : registros) {
-            ocupadas += registro.getPistasOcupadas();
+            soma += registro.pistasOcupadas;
         }
-        int total = configuracao.getQuantidadePistas() * registros.size();
-        if (total == 0) {
-            return 0.0;
-        }
-        return 100.0 * ocupadas / total;
+        int totalPossivel = config.quantidadePistas * registros.size();
+        return 100.0 * soma / totalPossivel;
     }
 
-    private String csvRodadas() {
-        StringBuilder csv = new StringBuilder(
-                "rodada,fila_entrada,fila_alta,fila_media,fila_baixa,controladores_ocupados,pistas_ocupadas\n");
-        for (RegistroRodada registro : registros) {
-            csv.append(registro.getRodada()).append(',')
-                    .append(registro.getFilaEntrada()).append(',')
-                    .append(registro.getFilaAlta()).append(',')
-                    .append(registro.getFilaMedia()).append(',')
-                    .append(registro.getFilaBaixa()).append(',')
-                    .append(registro.getControladoresOcupados()).append(',')
-                    .append(registro.getPistasOcupadas()).append('\n');
-        }
-        return csv.toString();
+    // ---------- Arquivos CSV ----------
+
+    public void salvarCsv(String pasta) throws IOException {
+        new File(pasta).mkdirs();
+        gravar(pasta + "/rodadas.csv", montarCsvRodadas());
+        gravar(pasta + "/aeronaves.csv", montarCsvAeronaves());
     }
 
-    private String csvAeronaves() {
-        StringBuilder csv = new StringBuilder(
-                "identificacao,estado,rodada_chegada,prioridade,inicio_classificacao,fim_classificacao,"
-                        + "inicio_processamento,fim_processamento,espera_total,tempo_no_sistema\n");
-        for (Aeronave aeronave : aeronaves) {
-            csv.append(aeronave.getIdentificacao()).append(',')
-                    .append(aeronave.getEstado()).append(',')
-                    .append(aeronave.getRodadaChegada()).append(',');
-            if (aeronave.getPrioridade() != null) {
-                csv.append(aeronave.getPrioridade());
+    private void gravar(String caminho, String texto) throws IOException {
+        PrintWriter escritor = new PrintWriter(new FileWriter(caminho));
+        escritor.print(texto);
+        escritor.close();
+    }
+
+    private String montarCsvRodadas() {
+        String csv = "rodada,fila_entrada,fila_alta,fila_media,fila_baixa,"
+                + "controladores_ocupados,pistas_ocupadas\n";
+        for (RegistroRodada r : registros) {
+            csv += r.rodada + "," + r.filaEntrada + "," + r.filaAlta + ","
+                    + r.filaMedia + "," + r.filaBaixa + ","
+                    + r.controladoresOcupados + "," + r.pistasOcupadas + "\n";
+        }
+        return csv;
+    }
+
+    private String montarCsvAeronaves() {
+        String csv = "identificacao,estado,rodada_chegada,prioridade,inicio_classificacao,"
+                + "fim_classificacao,inicio_processamento,fim_processamento,"
+                + "espera_total,tempo_no_sistema\n";
+        for (Aeronave a : aeronaves) {
+            String prioridade = "";
+            if (a.getPrioridade() != null) {
+                prioridade = a.getPrioridade().toString();
             }
-            csv.append(',').append(tempoCsv(aeronave.getInicioClassificacao()))
-                    .append(',').append(tempoCsv(aeronave.getFimClassificacao()))
-                    .append(',').append(tempoCsv(aeronave.getInicioProcessamento()))
-                    .append(',').append(tempoCsv(aeronave.getFimProcessamento()))
-                    .append(',').append(tempoCsv(aeronave.getTempoEsperaTotal()))
-                    .append(',').append(tempoCsv(aeronave.getTempoNoSistema()))
-                    .append('\n');
+            csv += a.getIdentificacao() + "," + a.getEstado() + "," + a.getRodadaChegada() + ","
+                    + prioridade + ","
+                    + tempoCsv(a.getInicioClassificacao()) + ","
+                    + tempoCsv(a.getFimClassificacao()) + ","
+                    + tempoCsv(a.getInicioProcessamento()) + ","
+                    + tempoCsv(a.getFimProcessamento()) + ","
+                    + tempoCsv(a.getTempoEsperaTotal()) + ","
+                    + tempoCsv(a.getTempoNoSistema()) + "\n";
         }
-        return csv.toString();
+        return csv;
     }
 
+    // Tempo negativo (-1) quer dizer "não aconteceu": deixa a célula vazia.
     private String tempoCsv(int tempo) {
         if (tempo < 0) {
             return "";

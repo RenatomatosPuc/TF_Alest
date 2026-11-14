@@ -1,7 +1,7 @@
 package TF_Alest;
 
 public class Aeronave {
-    // Situação atual da aeronave na simulação.
+    // Em que etapa a aeronave está.
     public enum EstadoAeronave {
         FILA_ENTRADA,
         CLASSIFICANDO,
@@ -15,22 +15,15 @@ public class Aeronave {
     private final int rodadaChegada;
     private EstadoAeronave estado;
     private Prioridade prioridade;
+
+    // -1 significa "ainda não aconteceu"
     private int inicioClassificacao = -1;
     private int fimClassificacao = -1;
     private int inicioProcessamento = -1;
     private int fimProcessamento = -1;
 
-    // Cria uma nova aeronave com a identificação e a rodada de chegada
-    // especificadas.
     public Aeronave(String identificacao, int rodadaChegada) {
-        String id = identificacao.trim();
-        if (id.isEmpty()) {
-            throw new IllegalArgumentException("A identificação da aeronave não pode ser vazia.");
-        }
-        if (rodadaChegada < 0) {
-            throw new IllegalArgumentException("A rodada de chegada não pode ser negativa.");
-        }
-        this.identificacao = id;
+        this.identificacao = identificacao;
         this.rodadaChegada = rodadaChegada;
         this.estado = EstadoAeronave.FILA_ENTRADA;
     }
@@ -44,105 +37,72 @@ public class Aeronave {
     }
 
     public EstadoAeronave getEstado() {
-        return estado;
+        return this.estado;
     }
 
     public Prioridade getPrioridade() {
-        return prioridade;
+        return this.prioridade;
     }
 
     public int getInicioClassificacao() {
-        return inicioClassificacao;
+        return this.inicioClassificacao;
     }
 
     public int getFimClassificacao() {
-        return fimClassificacao;
+        return this.fimClassificacao;
     }
 
     public int getInicioProcessamento() {
-        return inicioProcessamento;
+        return this.inicioProcessamento;
     }
 
     public int getFimProcessamento() {
-        return fimProcessamento;
+        return this.fimProcessamento;
     }
 
-    void recusar() {
-        exigirEstado(EstadoAeronave.FILA_ENTRADA);
-        estado = EstadoAeronave.RECUSADA;
+    // Cada método abaixo registra o tempo e muda o estado da aeronave.
+
+    public void recusar() {
+        this.estado = EstadoAeronave.RECUSADA;
     }
 
-    void iniciarClassificacao(int tempo) {
-        exigirEstado(EstadoAeronave.FILA_ENTRADA);
-        validarTempo(tempo);
-        if (tempo < rodadaChegada) {
-            throw new IllegalArgumentException("A classificação não pode começar antes da chegada.");
-        }
-        inicioClassificacao = tempo;
-        estado = EstadoAeronave.CLASSIFICANDO;
+    public void iniciarClassificacao(int tempo) {
+        this.inicioClassificacao = tempo;
+        this.estado = EstadoAeronave.CLASSIFICANDO;
     }
 
-    void concluirClassificacao(int tempo, Prioridade prioridade) {
-        exigirEstado(EstadoAeronave.CLASSIFICANDO);
-        validarTempo(tempo);
-        if (tempo <= inicioClassificacao) {
-            throw new IllegalArgumentException("A classificação deve consumir ao menos uma unidade de tempo.");
-        }
-        if (prioridade == null) {
-            throw new IllegalArgumentException("A prioridade não pode ser vazia.");
-        }
+    public void concluirClassificacao(int tempo, Prioridade prioridade) {
+        this.fimClassificacao = tempo;
         this.prioridade = prioridade;
-        fimClassificacao = tempo;
-        estado = EstadoAeronave.FILA_PRIORIDADE;
+        this.estado = EstadoAeronave.FILA_PRIORIDADE;
     }
 
-    void iniciarProcessamento(int tempo) {
-        exigirEstado(EstadoAeronave.FILA_PRIORIDADE);
-        validarTempo(tempo);
-        if (tempo < fimClassificacao) {
-            throw new IllegalArgumentException("O processamento não pode começar antes da classificação terminar.");
-        }
-        inicioProcessamento = tempo;
-        estado = EstadoAeronave.EM_PROCESSAMENTO;
+    public void iniciarProcessamento(int tempo) {
+        this.inicioProcessamento = tempo;
+        this.estado = EstadoAeronave.EM_PROCESSAMENTO;
     }
 
-    void concluirProcessamento(int tempo) {
-        exigirEstado(EstadoAeronave.EM_PROCESSAMENTO);
-        validarTempo(tempo);
-        if (tempo <= inicioProcessamento) {
-            throw new IllegalArgumentException("O processamento deve consumir ao menos uma unidade de tempo.");
-        }
-        fimProcessamento = tempo;
-        estado = EstadoAeronave.CONCLUIDA;
+    public void concluirProcessamento(int tempo) {
+        this.fimProcessamento = tempo;
+        this.estado = EstadoAeronave.CONCLUIDA;
     }
 
-    // Soma os intervalos de espera. retorna -1 se ainda não começou.
+    // Espera = tempo na fila de entrada + tempo na fila de prioridade.
+    // Retorna -1 se a aeronave ainda não chegou à pista.
     public int getTempoEsperaTotal() {
-        if (inicioProcessamento < 0) {
+        if (this.inicioProcessamento < 0) {
             return -1;
         }
-        return (inicioClassificacao - rodadaChegada) + (inicioProcessamento - fimClassificacao);
+        int esperaEntrada = inicioClassificacao - rodadaChegada;
+        int esperaPrioridade = inicioProcessamento - fimClassificacao;
+        return esperaEntrada + esperaPrioridade;
     }
 
-    // Retorna o tempo no sistema para aeronaves concluídas. caso contrário retorna
-    // -1.
+    // Tempo desde a chegada até terminar a pista. Retorna -1 se não concluiu.
     public int getTempoNoSistema() {
-        if (estado != EstadoAeronave.CONCLUIDA) {
+        if (this.estado != EstadoAeronave.CONCLUIDA) {
             return -1;
         }
-        return fimProcessamento - rodadaChegada;
-    }
-
-    // Verifica se o estado da aeronave é o esperado.
-    private void exigirEstado(EstadoAeronave esperado) {
-        if (estado != esperado) {
-            throw new IllegalStateException("Transição inválida para " + identificacao + ": estado atual " + estado);
-        }
-    }
-
-    private static void validarTempo(int tempo) {
-        if (tempo < 0) {
-            throw new IllegalArgumentException("O tempo não pode ser negativo.");
-        }
+        return this.fimProcessamento - rodadaChegada;
     }
 }

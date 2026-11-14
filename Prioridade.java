@@ -1,6 +1,6 @@
 package TF_Alest;
 
-// Níveis de prioridade usados para classificar aeronaves.
+// Os três níveis de prioridade de uma aeronave.
 public enum Prioridade {
     ALTA,
     MEDIA,

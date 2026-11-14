@@ -1,4 +1,4 @@
-package aeroporto;
+package TF_Alest;
 
 // Valores tipados e validados.
 public class Configuracao {

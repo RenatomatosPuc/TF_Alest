@@ -1,4 +1,4 @@
-package aeroporto;
+package TF_Alest;
 
 // Medidas do sistema durante uma rodada da simulação.
 public class RegistroRodada {

@@ -1,4 +1,4 @@
-package aeroporto;
+package TF_Alest;
 
 public class Aeronave {
     // Situação atual da aeronave na simulação.

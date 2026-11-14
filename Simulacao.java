@@ -1,4 +1,4 @@
-package aeroporto;
+package TF_Alest;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,11 +8,12 @@ import java.util.Random;
 public class Simulacao {
     private final Configuracao configuracao;
     private final Random aleatorio;
-    private final Entrada entrada;
+    private final Entrada entrada;teste porraaaaaaaaaa
     private final Classificacao classificacao;
     private final Processamento processamento;
     private final List<Aeronave> aeronaves = new ArrayList<>();
     private final List<RegistroRodada> registros = new ArrayList<>();
+
     public Simulacao(Configuracao configuracao) {
         this.configuracao = configuracao;
         this.aleatorio = new Random(configuracao.getSemente());

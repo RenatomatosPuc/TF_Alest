@@ -1,7 +1,7 @@
-package aeroporto;
+package TF_Alest;
 
 // ocupa um controlador ou uma pista.
-class Atendimento {
+public class Atendimento {
     private final Aeronave aeronave;
     private int tempoRestante;
 
@@ -11,15 +11,15 @@ class Atendimento {
         this.tempoRestante = duracao;
     }
 
-    Aeronave getAeronave() {
+    public Aeronave getAeronave() {
         return aeronave;
     }
 
-    boolean terminou() {
+    public boolean terminou() {
         return tempoRestante == 0;
     }
 
-    void avancarUmaRodada() {
+    public void avancarUmaRodada() {
         tempoRestante--;
     }
 }
